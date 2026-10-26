@@ -94,6 +94,20 @@ p {
   color: var(--text);
 }
 
+.topbar-link {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--text-2);
+  text-decoration: none;
+  padding: 5px 8px;
+  border-radius: 8px;
+}
+
+.topbar-link:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
 .chip {
   display: inline-flex;
   align-items: center;
@@ -588,17 +602,13 @@ kbd {
   transform: translate(-50%, 0);
 }
 
-.repo-link {
-  position: fixed;
-  right: 16px;
-  bottom: 8px;
-  font-size: 12px;
-  color: var(--text-2);
-  text-decoration: none;
-  opacity: 0.7;
+.row-note {
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 16px;
 }
 
-.repo-link:hover {
-  opacity: 1;
-  text-decoration: underline;
+.row-note .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
 }

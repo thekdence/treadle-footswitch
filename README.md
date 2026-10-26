@@ -1,7 +1,20 @@
-# Treadle
+# Treadle: foot pedal software for PCsensor & iKKEGOL USB foot switches
 
-A clean, modern configurator for PCsensor USB foot switches. It's a small,
-fast replacement for the vendor's FootSwitch app.
+Treadle is a clean, modern, open-source configurator for PCsensor and iKKEGOL
+USB foot pedals (FS2020, FS2017, FS2016 and similar). It's a small, fast
+replacement for the vendor's FootSwitch app. Set each pedal to a key or
+shortcut, choose hold or tap, and save it straight to the pedal.
+
+![Treadle showing a three-pedal foot switch](docs/screenshot.png)
+
+## Download
+
+Grab the Windows installer from the
+[latest release](https://github.com/thekdence/treadle-footswitch/releases/latest),
+run it, and open **Treadle** from the Start menu. macOS and Linux builds are
+coming; for now you can build them from source (below).
+
+## Features
 
 - **Record a shortcut** by pressing it, or pick any key from a list,
   including F13–F24.
@@ -41,10 +54,20 @@ npm install
 npm run tauri dev
 ```
 
+No pedal handy? `npm run dev` opens the UI in a browser with a simulated
+pedal (`?pedal=none` and `?pedal=other` show the other states).
+
 Run the protocol tests:
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml
+```
+
+With a pedal plugged in, a round-trip test changes the last pedal, checks it,
+and restores it:
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml --test hardware -- --ignored
 ```
 
 Build an installer:
@@ -56,8 +79,9 @@ npm run tauri build
 On **Linux**, give your user access to the pedal with a udev rule like the
 one in [rgerganov/footswitch](https://github.com/rgerganov/footswitch/blob/master/19-footswitch.rules).
 
-On **macOS**, no extra permissions are needed. Treadle only talks to the
-pedal; it never captures or simulates system-wide input.
+On **macOS**, Treadle only talks to the pedal's configuration interface, never
+to your keyboard input, so it shouldn't need Input Monitoring permission.
+macOS builds are untested so far; reports are welcome.
 
 ## How it works
 

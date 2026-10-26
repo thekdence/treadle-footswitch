@@ -21,12 +21,17 @@ const CONFIG_INTERFACE: i32 = 1;
 
 /// Pause after each write. The firmware drops commands sent back to back.
 const WRITE_GAP: Duration = Duration::from_millis(30);
-const READ_TIMEOUT_MS: i32 = 300;
+/// How long to wait for the first reply to a query, and for each further
+/// report once the pedal has started answering.
+const FIRST_REPLY_MS: i32 = 300;
+const NEXT_REPLY_MS: i32 = 40;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PedalError {
     #[error("No foot switch found. Plug it in, and close the PCsensor app if it's open.")]
     NotFound,
+    #[error("Found the pedal but couldn't open it ({0}). On Linux, install the udev rule from the README.")]
+    Open(hidapi::HidError),
     #[error("USB error: {0}")]
     Hid(#[from] hidapi::HidError),
     #[error("Slot {0} doesn't exist on this pedal")]
@@ -93,7 +98,7 @@ impl Pedal {
     pub fn open(api: &mut HidApi) -> Result<Self> {
         api.refresh_devices()?;
         let (path, vendor_id, product_id) = find_config_path(api).ok_or(PedalError::NotFound)?;
-        let dev = api.open_path(&path)?;
+        let dev = api.open_path(&path).map_err(PedalError::Open)?;
         Ok(Self { dev, vendor_id, product_id })
     }
 
@@ -111,7 +116,8 @@ impl Pedal {
         let mut out = Vec::new();
         let mut buf = [0u8; 64];
         loop {
-            let n = self.dev.read_timeout(&mut buf, READ_TIMEOUT_MS)?;
+            let timeout = if out.is_empty() { FIRST_REPLY_MS } else { NEXT_REPLY_MS };
+            let n = self.dev.read_timeout(&mut buf, timeout)?;
             if n == 0 {
                 return Ok(out);
             }

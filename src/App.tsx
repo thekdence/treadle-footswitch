@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { type PedalState, type Slot, parseFirmware, pedalConnected, readPedal, writePedal } from "./api";
 import { foldSides, keyForCode, modifiersOf } from "./keys";
@@ -10,7 +10,7 @@ import pedalImg from "./assets/pedal.png";
 import "./App.css";
 
 const POLL_MS = 1500;
-const REPO_URL = "https://github.com/thekdence/treadle";
+const REPO_URL = "https://github.com/thekdence/treadle-footswitch";
 
 type Status = "searching" | "loading" | "ready" | "saving";
 
@@ -47,9 +47,10 @@ export default function App() {
       const connected = await pedalConnected().catch(() => false);
       if (!alive) return;
       if (connected && status === "searching" && !error) load();
-      if (!connected && status === "ready") {
+      if (!connected && (status === "ready" || error)) {
         setPedal(null);
         setDraft([]);
+        setError(null);
         setStatus("searching");
       }
     };
@@ -74,6 +75,9 @@ export default function App() {
   }, [toast]);
 
   const changed = pedal ? draft.filter((s, i) => !same(s, pedal.slots[i])) : [];
+  // Keep showing the last count while the save bar slides away.
+  const shownCount = useRef(0);
+  if (changed.length) shownCount.current = changed.length;
 
   const save = async () => {
     setStatus("saving");
@@ -104,7 +108,12 @@ export default function App() {
           <img src={logoImg} alt="" width={26} height={26} />
           <span>Treadle</span>
         </div>
-        <DeviceChip pedal={pedal} status={status} />
+        <div className="row">
+          <a className="topbar-link" href={REPO_URL} onClick={(e) => (e.preventDefault(), openUrl(REPO_URL))}>
+            GitHub
+          </a>
+          <DeviceChip pedal={pedal} status={status} />
+        </div>
       </header>
 
       <main className="content">
@@ -151,7 +160,7 @@ export default function App() {
 
       <footer className={`savebar${changed.length ? " is-visible" : ""}`}>
         <span>
-          {changed.length} {changed.length === 1 ? "pedal" : "pedals"} changed
+          {shownCount.current} {shownCount.current === 1 ? "pedal" : "pedals"} changed
         </span>
         <div className="row">
           <button className="btn btn-ghost" disabled={status === "saving"} onClick={() => pedal && setDraft(pedal.slots)}>
@@ -164,12 +173,8 @@ export default function App() {
       </footer>
 
       <div className={`toast${toast ? " is-visible" : ""}`} role="status">
-        ✓ {toast}
+        {toast && `✓ ${toast}`}
       </div>
-
-      <a className="repo-link" href={REPO_URL} onClick={(e) => (e.preventDefault(), openUrl(REPO_URL))}>
-        Open source on GitHub
-      </a>
     </div>
   );
 }

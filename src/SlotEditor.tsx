@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Action, KeyMode, Slot, Trigger } from "./api";
-import { KEY_GROUPS, KEYS, keyForCode, keyLabel, modifierBit, modifierLabels } from "./keys";
+import { KEY_GROUPS, KEYS, foldSides, keyForCode, keyLabel, modifierBit, modifierLabels, modifiersOf } from "./keys";
 
 interface Props {
   title: string;
@@ -96,10 +96,15 @@ export function SlotEditor({ title, slot, recording, onRecord, onChange }: Props
           </div>
         </>
       ) : (
-        <p className="note">
-          This pedal holds a mouse, text, media or macro action. Treadle can't edit those yet, so it will leave it
-          exactly as it is.
-        </p>
+        <div className="row row-note">
+          <p className="note">
+            This pedal holds a mouse, text, media or macro action. Treadle can't edit those yet, so it leaves it
+            exactly as it is unless you replace it.
+          </p>
+          <button className="btn" onClick={() => setAction({ kind: "none" })}>
+            Replace with a shortcut
+          </button>
+        </div>
       )}
     </section>
   );
@@ -152,6 +157,15 @@ function Segmented<T extends string>(props: {
 }
 
 /**
+ * Add modifiers the event reports as held but whose own keydown we never saw
+ * (pressed before recording started), keeping any left/right detail we have.
+ */
+function withEventModifiers(held: number, e: KeyboardEvent): number {
+  const seen = foldSides(held);
+  return held | (modifiersOf(e) & ~seen);
+}
+
+/**
  * While `active`, swallow keyboard input and report the first shortcut:
  * modifiers plus one key, or modifiers alone once they're released.
  */
@@ -173,7 +187,7 @@ function useShortcutRecorder(active: boolean, onDone: (mods: number, key: number
       }
       if (e.code === "Escape" && held.current === 0) return cb.current.onCancel();
       const key = keyForCode(e.code);
-      if (key) cb.current.onDone(held.current, key.usage);
+      if (key) cb.current.onDone(withEventModifiers(held.current, e), key.usage);
     };
     const up = (e: KeyboardEvent) => {
       e.preventDefault();

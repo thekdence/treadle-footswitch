@@ -1,4 +1,4 @@
-mod pedal;
+pub mod pedal;
 
 use std::sync::{Arc, Mutex};
 
