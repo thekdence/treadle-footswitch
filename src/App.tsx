@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { type PedalState, type Slot, parseFirmware, pedalConnected, physicalPedals, readPedal, writePedal } from "./api";
+import { type PedalState, type Slot, parseFirmware, pedalConnected, readPedal, writePedal } from "./api";
 import { foldSides, keyForCode, modifiersOf } from "./keys";
-import { SlotCard } from "./SlotCard";
+import { ActionView, SlotEditor } from "./SlotEditor";
+import { fitWindowToContent } from "./fitWindow";
+import boardImg from "./assets/board.png";
+import logoImg from "./assets/logo.png";
+import pedalImg from "./assets/pedal.png";
 import "./App.css";
 
 const POLL_MS = 1500;
@@ -10,15 +14,17 @@ const REPO_URL = "https://github.com/thekdence/treadle";
 
 type Status = "searching" | "loading" | "ready" | "saving";
 
+const same = (a: Slot, b?: Slot) => JSON.stringify(a) === JSON.stringify(b);
+
 export default function App() {
   const [status, setStatus] = useState<Status>("searching");
   const [pedal, setPedal] = useState<PedalState | null>(null);
   const [draft, setDraft] = useState<Slot[]>([]);
+  const [selected, setSelected] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [recording, setRecording] = useState<number | null>(null);
-  const [showExtra, setShowExtra] = useState(false);
-  const pressed = usePressedSlots(pedal?.slots ?? [], recording !== null);
+  const pressed = usePressedSlots(pedal?.slots ?? [], recording !== null, setSelected);
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -55,13 +61,19 @@ export default function App() {
     };
   }, [status, error, load]);
 
+  // Size the window to the pedal layout once it first appears.
+  const ready = pedal !== null;
+  useEffect(() => {
+    if (ready) requestAnimationFrame(() => void fitWindowToContent().catch(() => {}));
+  }, [ready]);
+
   useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => setToast(null), 2500);
     return () => clearTimeout(id);
   }, [toast]);
 
-  const changed = pedal ? draft.filter((s, i) => JSON.stringify(s) !== JSON.stringify(pedal.slots[i])) : [];
+  const changed = pedal ? draft.filter((s, i) => !same(s, pedal.slots[i])) : [];
 
   const save = async () => {
     setStatus("saving");
@@ -78,30 +90,18 @@ export default function App() {
   };
 
   const updateSlot = (slot: Slot) => setDraft((d) => d.map((s) => (s.index === slot.index ? slot : s)));
+  const select = (index: number) => {
+    setSelected(index);
+    setRecording(null);
+  };
 
-  const physical = pedal ? physicalPedals(pedal.firmware) : undefined;
-  const mainCount = physical && physical < draft.length ? physical : draft.length;
-  const titleFor = (s: Slot) =>
-    s.index > mainCount ? `Slot ${s.index}` : mainCount === 1 ? "Pedal" : `Pedal ${s.index}`;
-
-  const renderSlot = (s: Slot, i: number) => (
-    <SlotCard
-      key={s.index}
-      title={titleFor(s)}
-      slot={s}
-      changed={JSON.stringify(s) !== JSON.stringify(pedal?.slots[i])}
-      pressed={pressed.has(s.index)}
-      recording={recording === s.index}
-      onRecord={(on) => setRecording(on ? s.index : null)}
-      onChange={updateSlot}
-    />
-  );
+  const current = draft.find((s) => s.index === selected) ?? draft[0];
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <Logo />
+          <img src={logoImg} alt="" width={26} height={26} />
           <span>Treadle</span>
         </div>
         <DeviceChip pedal={pedal} status={status} />
@@ -117,42 +117,41 @@ export default function App() {
           </div>
         )}
 
-        {!pedal ? (
+        {!pedal || !current ? (
           <EmptyState loading={status === "loading"} />
         ) : (
           <>
-            <p className="lede">
-              Your shortcuts are saved on the pedal itself, so it works on any computer without Treadle running.
-              Press the pedal to see which slot it uses.
+            <div className="board" role="tablist" aria-label="Pedals">
+              {draft.map((s, i) => (
+                <PedalTile
+                  key={s.index}
+                  slot={s}
+                  selected={s.index === current.index}
+                  pressed={pressed.has(s.index)}
+                  changed={!same(s, pedal.slots[i])}
+                  onSelect={() => select(s.index)}
+                />
+              ))}
+            </div>
+            <p className="hint">
+              Step on a pedal to jump to it. Shortcuts are saved on the pedal itself, so it works on any computer
+              without Treadle running.
             </p>
-            <div className="slots">{draft.slice(0, mainCount).map(renderSlot)}</div>
-
-            {draft.length > mainCount && (
-              <div className="extra">
-                <button className="disclosure" aria-expanded={showExtra} onClick={() => setShowExtra(!showExtra)}>
-                  <span className="chevron" aria-hidden>
-                    ›
-                  </span>
-                  Extra slots ({draft.length - mainCount})
-                </button>
-                {showExtra && (
-                  <>
-                    <p className="note">
-                      The {parseFirmware(pedal.firmware).model} has {mainCount === 1 ? "one pedal" : `${mainCount} pedals`},
-                      but its firmware keeps {draft.length} slots. The extra ones are normally unused.
-                    </p>
-                    <div className="slots">{draft.slice(mainCount).map((s, i) => renderSlot(s, i + mainCount))}</div>
-                  </>
-                )}
-              </div>
-            )}
+            <SlotEditor
+              key={current.index}
+              title={`Pedal ${current.index}`}
+              slot={current}
+              recording={recording === current.index}
+              onRecord={(on) => setRecording(on ? current.index : null)}
+              onChange={updateSlot}
+            />
           </>
         )}
       </main>
 
       <footer className={`savebar${changed.length ? " is-visible" : ""}`}>
         <span>
-          {changed.length} unsaved {changed.length === 1 ? "change" : "changes"}
+          {changed.length} {changed.length === 1 ? "pedal" : "pedals"} changed
         </span>
         <div className="row">
           <button className="btn btn-ghost" disabled={status === "saving"} onClick={() => pedal && setDraft(pedal.slots)}>
@@ -175,8 +174,38 @@ export default function App() {
   );
 }
 
-/** Slots whose saved shortcut is currently held down, so pressing the pedal lights up its card. */
-function usePressedSlots(slots: Slot[], paused: boolean) {
+function PedalTile(props: { slot: Slot; selected: boolean; pressed: boolean; changed: boolean; onSelect: () => void }) {
+  const { slot, selected, pressed, changed } = props;
+  const cls = ["tile", selected && "is-selected", pressed && "is-pressed"].filter(Boolean).join(" ");
+  return (
+    <button className={cls} role="tab" aria-selected={selected} onClick={props.onSelect}>
+      <span className="tile-head">
+        <span className="tile-num">Pedal {slot.index}</span>
+        {pressed ? (
+          <span className="badge badge-live">Pressed</span>
+        ) : (
+          changed && <span className="badge">Unsaved</span>
+        )}
+      </span>
+      <img className="tile-img" src={pedalImg} alt="" draggable={false} />
+      <span className="tile-action">
+        <ActionView action={slot.action} compact />
+      </span>
+      {slot.action.kind === "key" && (
+        <span className="tile-meta">
+          {slot.action.mode === "hold" ? "Hold" : "Tap"}
+          {slot.trigger && ` · on ${slot.trigger}`}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * Slots whose saved shortcut is currently held down, so stepping on a pedal
+ * lights up its tile. The most recent press is also selected.
+ */
+function usePressedSlots(slots: Slot[], paused: boolean, onPress: (index: number) => void) {
   const [pressed, setPressed] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -191,7 +220,10 @@ function usePressedSlots(slots: Slot[], paused: boolean) {
     };
     const down = (e: KeyboardEvent) => {
       const hit = match(e);
-      if (hit) setPressed((p) => new Set(p).add(hit.index));
+      if (!hit) return;
+      e.preventDefault();
+      if (!e.repeat) onPress(hit.index);
+      setPressed((p) => new Set(p).add(hit.index));
     };
     const up = (e: KeyboardEvent) => {
       const key = keyForCode(e.code);
@@ -211,7 +243,7 @@ function usePressedSlots(slots: Slot[], paused: boolean) {
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", clear);
     };
-  }, [slots, paused]);
+  }, [slots, paused, onPress]);
 
   return pressed;
 }
@@ -240,31 +272,12 @@ const hex = (n: number) => n.toString(16).padStart(4, "0");
 function EmptyState({ loading }: { loading: boolean }) {
   return (
     <div className="empty">
-      <PedalArt />
+      <img className="empty-img" src={boardImg} alt="" draggable={false} />
       <h1>{loading ? "Reading your pedal…" : "Plug in your foot switch"}</h1>
       <p>
         Treadle works with PCsensor USB foot switches. If it's plugged in and nothing happens, close the PCsensor
         FootSwitch app and try another USB port.
       </p>
     </div>
-  );
-}
-
-function Logo() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
-      <rect x="3" y="13" width="18" height="7" rx="2.5" fill="currentColor" opacity=".35" />
-      <path d="M5 13 L17 6.5 a2 2 0 0 1 2.6 .9 l.4 .8 a2 2 0 0 1-.9 2.6 L11 14z" fill="currentColor" />
-    </svg>
-  );
-}
-
-function PedalArt() {
-  return (
-    <svg className="pedal-art" width="168" height="110" viewBox="0 0 168 110" aria-hidden>
-      <rect x="10" y="66" width="148" height="34" rx="12" className="pedal-base" />
-      <path d="M22 66 L132 22 a10 10 0 0 1 13 5 l3 7 a10 10 0 0 1-5 13 L64 78z" className="pedal-top" />
-      <rect x="52" y="52" width="62" height="6" rx="3" transform="rotate(-22 83 55)" className="pedal-grip" />
-    </svg>
   );
 }

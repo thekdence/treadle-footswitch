@@ -9,8 +9,8 @@ fast replacement for the vendor's FootSwitch app.
   push-to-talk), or fire once per press.
 - **Press or release.** Choose whether the pedal fires when it goes down or
   when you lift your foot.
-- **Live test.** Press the pedal and its card lights up, so you can see which
-  slot it uses.
+- **All your pedals at a glance.** Each pedal gets a tile showing its shortcut.
+  Step on a pedal and its tile lights up and opens for editing.
 - **Saved on the pedal.** Mappings live in the pedal's own memory, so it works
   on any computer without Treadle running.
 
@@ -21,7 +21,7 @@ and starts instantly.
 
 | Model | USB ID | Status |
 | --- | --- | --- |
-| FS2020U1IR (firmware 5.7) | `3553:b001` | Tested |
+| iKKEGOL triple pedal (firmware FS2020U1IR_V5.7) | `3553:b001` | Tested: reading and saving |
 | Other PCsensor / iKKEGOL pedals | `3553:b001`, `0c45:7403`, `0c45:7404`, `413d:2107`, `1a86:e026` | Should work, untested |
 
 If you try another model, please open an issue with its firmware string (shown

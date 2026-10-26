@@ -5,14 +5,12 @@ import { KEY_GROUPS, KEYS, keyForCode, keyLabel, modifierBit, modifierLabels } f
 interface Props {
   title: string;
   slot: Slot;
-  changed: boolean;
-  pressed: boolean;
   recording: boolean;
   onRecord: (on: boolean) => void;
   onChange: (slot: Slot) => void;
 }
 
-export function SlotCard({ title, slot, changed, pressed, recording, onRecord, onChange }: Props) {
+export function SlotEditor({ title, slot, recording, onRecord, onChange }: Props) {
   const { action } = slot;
   const mode: KeyMode = action.kind === "key" ? action.mode : "hold";
   const editable = action.kind !== "other";
@@ -26,14 +24,12 @@ export function SlotCard({ title, slot, changed, pressed, recording, onRecord, o
   }, () => onRecord(false));
 
   return (
-    <section className={`slot${pressed ? " is-pressed" : ""}${recording ? " is-recording" : ""}`}>
-      <header className="slot-head">
+    <section className={`editor${recording ? " is-recording" : ""}`} aria-label={`${title} settings`}>
+      <header className="editor-head">
         <h2>{title}</h2>
-        {changed && <span className="badge">Unsaved</span>}
-        {pressed && <span className="badge badge-live">Pressed</span>}
       </header>
 
-      <div className="slot-display" aria-live="polite">
+      <div className="editor-display" aria-live="polite">
         {recording ? (
           <span className="placeholder pulse">Press a key or shortcut… (Esc to cancel)</span>
         ) : (
@@ -101,7 +97,7 @@ export function SlotCard({ title, slot, changed, pressed, recording, onRecord, o
         </>
       ) : (
         <p className="note">
-          This slot holds a mouse, text, media or macro action. Treadle can't edit those yet, so it will leave it
+          This pedal holds a mouse, text, media or macro action. Treadle can't edit those yet, so it will leave it
           exactly as it is.
         </p>
       )}
@@ -109,12 +105,12 @@ export function SlotCard({ title, slot, changed, pressed, recording, onRecord, o
   );
 }
 
-function ActionView({ action }: { action: Action }) {
+export function ActionView({ action, compact }: { action: Action; compact?: boolean }) {
   if (action.kind === "none") return <span className="placeholder">Not set</span>;
   if (action.kind === "other") return <span className="placeholder">Custom action</span>;
   const caps = [...modifierLabels(action.modifiers), ...(action.key ? [keyLabel(action.key)] : [])];
   return (
-    <span className="keys">
+    <span className={`keys${compact ? " keys-compact" : ""}`}>
       {caps.map((c, i) => (
         <span key={i} className="keys-item">
           {i > 0 && <span className="plus">+</span>}

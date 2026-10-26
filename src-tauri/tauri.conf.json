@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "Treadle",
-        "width": 780,
-        "height": 700,
-        "minWidth": 520,
-        "minHeight": 480,
+        "width": 860,
+        "height": 760,
+        "minWidth": 560,
+        "minHeight": 520,
         "center": true
       }
     ],

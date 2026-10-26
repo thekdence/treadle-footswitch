@@ -6,7 +6,7 @@ observing the devices, building on the MIT-licensed
 studying how the vendor's configurator behaves. It is written here so other
 projects can use it too.
 
-Verified on: **FS2020U1IR, firmware 5.7** (USB `3553:b001`).
+Verified on: **iKKEGOL triple pedal, firmware ID FS2020U1IR_V5.7** (USB `3553:b001`).
 
 ## The big picture
 
@@ -89,7 +89,7 @@ header is `01 85 04 …` and the payload is `04 t1 t2 t3 00 00 00 00`.
 
 ## Slot counts
 
-The firmware ID names the model. The number of slots depends on the family,
-not on the number of physical pedals (the single-pedal FS2020U1IR still keeps
-3 slots). See `slot_count` in
+Each slot is one pedal. The firmware ID names the model family, and the
+slot count follows the family, so don't read too much into the name: the
+three-pedal iKKEGOL unit reports `FS2020U1IR`. See `slot_count` in
 `src-tauri/src/pedal/protocol.rs`.

@@ -33,8 +33,3 @@ export function parseFirmware(firmware: string) {
   return { model: model || "Foot switch", version: version ?? "" };
 }
 
-/** How many physical pedals the model has, when the name says so (U1, U2…). */
-export function physicalPedals(firmware: string): number | undefined {
-  const m = /U(\d)/.exec(parseFirmware(firmware).model);
-  return m ? Number(m[1]) : undefined;
-}
